@@ -7,7 +7,6 @@
 
 #include <QTcpServer>
 #include <QTcpSocket>
-#include <QVBoxLayout>
 #include <QLabel>
 #include <QFile>
 #include <QStandardPaths>

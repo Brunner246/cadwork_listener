@@ -6,9 +6,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
-set(QT_VERSION 5)
-set(CADLIB_DIR "C:\\source\\cadlib")
-set(CADWORK_VERSION 30)
+set(QT_VERSION 6)
+set(CADLIB_DIR "D:\\source\\cadlib")
+set(CADWORK_VERSION 33)
 
 add_subdirectory(src)
 
