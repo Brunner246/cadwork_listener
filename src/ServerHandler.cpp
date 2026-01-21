@@ -43,10 +43,9 @@ void ServerHandler::handleNewConnection()
     connect(clientSocket,
             &QTcpSocket::readyRead,
             this,
-            [=]
+            [this, clientSocket]
             {
                 const QByteArray data = clientSocket->readAll();
-
                 const QString tempPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) +
                     "/cw_script.py";
                 QFile file(tempPath);

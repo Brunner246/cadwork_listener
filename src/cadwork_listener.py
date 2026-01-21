@@ -1,5 +1,5 @@
-from PyQt5.QtCore import QObject, pyqtSignal, QEventLoop, QStandardPaths, QIODevice
-from PyQt5.QtNetwork import QTcpServer, QTcpSocket, QHostAddress
+from PyQt6.QtCore import QObject, pyqtSignal, QEventLoop, QStandardPaths, QIODevice
+from PyQt6.QtNetwork import QTcpServer, QTcpSocket, QHostAddress
 import os
 import utility_controller as uc
 
