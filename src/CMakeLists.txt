@@ -1,7 +1,5 @@
 find_package(CwAPI3D CONFIG REQUIRED)
 
-set(CMAKE_PREFIX_PATH "${CADLIB_DIR}\\3rdParty\\v_${CADWORK_VERSION}.0\\Qt\\x64\\lib\\cmake\\Qt${QT_VERSION}")
-
 find_package(Qt${QT_VERSION} COMPONENTS
         Core
         Network
@@ -11,6 +9,10 @@ find_package(Qt${QT_VERSION} COMPONENTS
 add_library(cadwork_listener SHARED library.cpp
         ServerHandler.cpp
         ServerHandler.h
+        ClientSession.cpp
+        ClientSession.h
+        ScriptExecutor.cpp
+        ScriptExecutor.h
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE

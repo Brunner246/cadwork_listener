@@ -3,11 +3,19 @@
 //
 
 #include "ServerHandler.h"
+#include "ClientSession.h"
+#include "ScriptExecutor.h"
 
-ServerHandler::ServerHandler(CwAPI3D::UtilityController *utilityController, QObject *parent)
+#include <QTcpServer>
+#include <QTcpSocket>
+#include <QHostAddress>
+#include <QEventLoop>
+#include <QDebug>
+
+ServerHandler::ServerHandler(CwAPI3D::Interfaces::ICwAPI3DUtilityController *utilityController, QObject *parent)
     : QObject(parent),
       server(new QTcpServer(this)),
-      utilityController(utilityController)
+      executor(new ScriptExecutor(utilityController, this))
 {
     connect(server, &QTcpServer::newConnection, this, &ServerHandler::handleNewConnection);
 
@@ -28,34 +36,16 @@ void ServerHandler::runEventLoop() const
 
 void ServerHandler::handleNewConnection()
 {
-    QTcpSocket *clientSocket = server->nextPendingConnection();
+    QTcpSocket *socket = server->nextPendingConnection();
+    if (!socket) {
+        return;
+    }
     qInfo() << "Client Connected!";
 
-    connect(clientSocket,
-            &QTcpSocket::disconnected,
-            this,
-            [=]
-            {
-                qInfo() << "Client Disconnected";
-                clientSocket->deleteLater();
-            });
-
-    connect(clientSocket,
-            &QTcpSocket::readyRead,
-            this,
-            [this, clientSocket]
-            {
-                const QByteArray data = clientSocket->readAll();
-                const QString tempPath = QStandardPaths::writableLocation(QStandardPaths::TempLocation) +
-                    "/cw_script.py";
-                QFile file(tempPath);
-                if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-                    file.write(data);
-                    file.close();
-                }
-                if (file.exists()) {
-                    utilityController->runExternalProgramFromCustomDirectory(tempPath.toStdWString().c_str());
-                }
-                QFile::remove(tempPath);
-            });
+    const auto *session = new ClientSession(socket, this);
+    connect(session,
+            &ClientSession::scriptReceived,
+            executor,
+            &ScriptExecutor::executeScript,
+            Qt::DirectConnection);
 }
