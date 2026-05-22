@@ -5,20 +5,22 @@
 #ifndef SERVERHANDLER_H
 #define SERVERHANDLER_H
 
-#include <QTcpServer>
-#include <QTcpSocket>
-#include <QLabel>
-#include <QFile>
-#include <QStandardPaths>
-#include <QEventLoop>
-#include <cwapi3d/CwAPI3D.h>
+#include <QObject>
 
-class ServerHandler final: public QObject
+namespace CwAPI3D::Interfaces
+{
+class ICwAPI3DUtilityController;
+}
+
+class QTcpServer;
+class ScriptExecutor;
+
+class ServerHandler final : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit ServerHandler(CwAPI3D::UtilityController *utilityController, QObject *parent = nullptr);
+    explicit ServerHandler(CwAPI3D::Interfaces::ICwAPI3DUtilityController *utilityController, QObject *parent = nullptr);
 
     ~ServerHandler() override = default;
 
@@ -32,7 +34,7 @@ private slots:
 
 private:
     QTcpServer *server{nullptr};
-    CwAPI3D::UtilityController *utilityController{nullptr};
+    ScriptExecutor *executor{nullptr};
 };
 
 #endif //SERVERHANDLER_H
