@@ -15,8 +15,6 @@ namespace CwAPI3D::Interfaces
 class ICwAPI3DUtilityController;
 }
 
-class ScriptFile;
-
 class ScriptExecutor final : public QObject
 {
     Q_OBJECT
@@ -26,11 +24,10 @@ public:
     ~ScriptExecutor() override;
 
 public slots:
-    void executeScript(const QByteArray &script);
+    void executeScript(const QByteArray &script) const;
 
 private:
     CwAPI3D::Interfaces::ICwAPI3DUtilityController *utilityController{nullptr};
-    std::vector<std::unique_ptr<ScriptFile>> scripts;
 };
 
 #endif //SCRIPTEXECUTOR_H
