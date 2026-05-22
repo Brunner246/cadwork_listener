@@ -36,6 +36,7 @@ public:
 
     ~ScriptFile()
     {
+        qDebug() << "ScriptFile: deleting temp file:" << filePath;
         if (!filePath.isEmpty()) {
             QFile::remove(filePath);
         }
@@ -61,17 +62,16 @@ ScriptExecutor::ScriptExecutor(CwAPI3D::Interfaces::ICwAPI3DUtilityController *u
 
 ScriptExecutor::~ScriptExecutor() = default;
 
-void ScriptExecutor::executeScript(const QByteArray &script)
+void ScriptExecutor::executeScript(const QByteArray &script) const
 {
     if (script.isEmpty()) {
         return;
     }
-    auto scriptFile = std::make_unique<ScriptFile>(script);
-    if (scriptFile->path().isEmpty()) {
+    const auto scriptFile = ScriptFile(script);
+    if (scriptFile.path().isEmpty()) {
         qWarning() << "ScriptExecutor: cannot run script, temp file unavailable";
         return;
     }
-    const QString path = scriptFile->path();
-    scripts.push_back(std::move(scriptFile));
+    const QString path = scriptFile.path();
     utilityController->runExternalProgramFromCustomDirectory(path.toStdWString().c_str());
 }
