@@ -21,6 +21,8 @@ add_library(cadwork_listener SHARED library.cpp
         NullEventSink.h
         SocketEventSink.cpp
         SocketEventSink.h
+        FileTeeOutputBridge.cpp
+        FileTeeOutputBridge.h
         NoopOutputCapture.h
         ports/RunEvent.h
         ports/RunEventSink.h

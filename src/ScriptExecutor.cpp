@@ -3,6 +3,7 @@
 //
 
 #include "ScriptExecutor.h"
+#include "FileTeeOutputBridge.h"
 
 #include <QDebug>
 #include <QDir>
@@ -12,6 +13,7 @@
 
 #include <cwapi3d/CwAPI3D.h>
 
+// RAII temp script: lives until destructor — must outlive host call (Spec §9).
 class ScriptFile
 {
 public:
@@ -46,6 +48,7 @@ public:
     ScriptFile &operator=(ScriptFile &&) = delete;
 
     [[nodiscard]] const QString &path() const { return filePath; }
+    [[nodiscard]] bool exists() const { return !filePath.isEmpty() && QFile::exists(filePath); }
 
 private:
     QTemporaryFile file;
@@ -53,15 +56,17 @@ private:
 };
 
 ScriptExecutor::ScriptExecutor(CwAPI3D::Interfaces::ICwAPI3DUtilityController *utilityController,
+                               FileTeeOutputBridge *capture,
                                QObject *parent)
     : QObject(parent),
-      utilityController(utilityController)
+      utilityController(utilityController),
+      capture_(capture)
 {
 }
 
 ScriptExecutor::~ScriptExecutor() = default;
 
-RunResult ScriptExecutor::run(const QString &scriptUtf8, const QString & /*jobId*/)
+RunResult ScriptExecutor::run(const QString &scriptUtf8, const QString &jobId)
 {
     if (scriptUtf8.isEmpty()) {
         return RunResult{false, QStringLiteral("empty script body")};
@@ -70,14 +75,38 @@ RunResult ScriptExecutor::run(const QString &scriptUtf8, const QString & /*jobId
         return RunResult{false, QStringLiteral("utility controller unavailable")};
     }
 
-    const QByteArray content = scriptUtf8.toUtf8();
-    auto scriptFile = std::make_unique<ScriptFile>(content);
-    if (scriptFile->path().isEmpty()) {
-        qWarning() << "ScriptExecutor: cannot run script, temp file unavailable";
-        return RunResult{false, QStringLiteral("temp file unavailable")};
+    // Hold temps for the full host call window, then release (Spec §9 / architecture §6).
+    std::unique_ptr<ScriptFile> localScript;
+    QString pathToRun;
+
+    if (capture_ != nullptr) {
+        pathToRun = capture_->prepareWrappedEntry(jobId, scriptUtf8);
+        if (pathToRun.isEmpty()) {
+            qWarning() << "ScriptExecutor: FileTee wrapper unavailable for" << jobId;
+            return RunResult{false, QStringLiteral("capture wrapper unavailable")};
+        }
+    } else {
+        localScript = std::make_unique<ScriptFile>(scriptUtf8.toUtf8());
+        if (localScript->path().isEmpty()) {
+            qWarning() << "ScriptExecutor: cannot run script, temp file unavailable";
+            return RunResult{false, QStringLiteral("temp file unavailable")};
+        }
+        pathToRun = localScript->path();
+        // Also keep on the vector for the duration of this call (explicit retention list).
+        scripts.push_back(std::move(localScript));
     }
-    const QString path = scriptFile->path();
-    scripts.push_back(std::move(scriptFile));
-    utilityController->runExternalProgramFromCustomDirectory(path.toStdWString().c_str());
+
+    hostCallActive_ = true;
+    activeEntryPath_ = pathToRun;
+
+    // Nested host call: do not delete pathToRun until after this returns.
+    utilityController->runExternalProgramFromCustomDirectory(pathToRun.toStdWString().c_str());
+
+    hostCallActive_ = false;
+    activeEntryPath_.clear();
+
+    // Release fallback script files only after host return (capture files cleaned in stop()).
+    scripts.clear();
+
     return RunResult{true, {}};
 }

@@ -20,6 +20,8 @@ QObject *createFixtureSmokeTest();
 QObject *createProtocolCodecTest();
 QObject *createScriptQueueTest();
 QObject *createSessionServerTest();
+QObject *createFileTeeCaptureTest();
+QObject *createReadmeMarkersTest();
 
 int main(int argc, char *argv[])
 {
@@ -32,12 +34,32 @@ int main(int argc, char *argv[])
         &createProtocolCodecTest,
         &createScriptQueueTest,
         &createSessionServerTest,
+        &createFileTeeCaptureTest,
+        &createReadmeMarkersTest,
     };
 
+    static const char *names[] = {
+        "FixtureSmokeTest",
+        "ProtocolCodecTest",
+        "ScriptQueueTest",
+        "SessionServerTest",
+        "FileTeeCaptureTest",
+        "ReadmeMarkersTest",
+    };
+    int i = 0;
     for (TestFactory factory : factories) {
         QObject *testObject = factory();
-        status |= QTest::qExec(testObject, argc, argv);
+        const int suiteStatus = QTest::qExec(testObject, argc, argv);
+        if (suiteStatus != 0) {
+            fprintf(stderr, "SUITE_FAIL %s status=%d\n", names[i], suiteStatus);
+            fflush(stderr);
+        } else {
+            fprintf(stderr, "SUITE_OK %s\n", names[i]);
+            fflush(stderr);
+        }
+        status |= suiteStatus;
         delete testObject;
+        ++i;
     }
     return status;
 }

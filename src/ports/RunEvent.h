@@ -57,6 +57,9 @@ struct OutputChunk {
 
 struct CaptureHandles {
     QString jobId;
+    // FileTee fills these; Noop/Fake may leave empty.
+    QString stdoutPath;
+    QString stderrPath;
 };
 
 #endif // LISTENER_PORTS_RUN_EVENT_H

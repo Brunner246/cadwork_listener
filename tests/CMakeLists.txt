@@ -9,6 +9,7 @@ set(LISTENER_DOMAIN_SOURCES
         ${CMAKE_SOURCE_DIR}/src/NullEventSink.cpp
         ${CMAKE_SOURCE_DIR}/src/SocketEventSink.cpp
         ${CMAKE_SOURCE_DIR}/src/ClientSession.cpp
+        ${CMAKE_SOURCE_DIR}/src/FileTeeOutputBridge.cpp
 )
 
 add_executable(listener_unit_tests
@@ -17,6 +18,8 @@ add_executable(listener_unit_tests
         protocol_codec_test.cpp
         script_queue_test.cpp
         session_server_test.cpp
+        file_tee_capture_test.cpp
+        readme_markers_test.cpp
         ${LISTENER_DOMAIN_SOURCES}
 )
 
