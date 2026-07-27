@@ -4,7 +4,7 @@
 
 #include "ServerHandler.h"
 #include "ClientSession.h"
-#include "NoopOutputCapture.h"
+#include "FileTeeOutputBridge.h"
 #include "ScriptExecutor.h"
 #include "ScriptQueue.h"
 #include "ports/RunEvent.h"
@@ -75,8 +75,8 @@ void setNonBlocking(qintptr fd)
 ServerHandler::ServerHandler(CwAPI3D::Interfaces::ICwAPI3DUtilityController *utilityController,
                              QObject *parent)
     : QObject(parent),
-      executor(new ScriptExecutor(utilityController, this)),
-      capture_(new NoopOutputCapture()),
+      capture_(new FileTeeOutputBridge()),
+      executor(new ScriptExecutor(utilityController, capture_, this)),
       queue_(new ScriptQueue(executor, capture_, this))
 {
 #if defined(Q_OS_WIN)

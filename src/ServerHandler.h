@@ -17,7 +17,7 @@ class ICwAPI3DUtilityController;
 class QSocketNotifier;
 class ScriptExecutor;
 class ScriptQueue;
-class NoopOutputCapture;
+class FileTeeOutputBridge;
 
 // Composition root (architecture §2.3 / §6): ScriptQueue + adapters, LocalHost:9999.
 // Native listen/accept so client half-close remains writable for NDJSON replies.
@@ -55,8 +55,9 @@ private:
     QSocketNotifier *acceptNotifier_{nullptr};
     bool listening_{false};
 
+    // capture_ before executor: ScriptExecutor needs FileTee at construction.
+    FileTeeOutputBridge *capture_{nullptr};
     ScriptExecutor *executor{nullptr};
-    NoopOutputCapture *capture_{nullptr};
     ScriptQueue *queue_{nullptr};
 };
 
