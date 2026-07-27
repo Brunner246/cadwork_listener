@@ -13,6 +13,20 @@ add_library(cadwork_listener SHARED library.cpp
         ClientSession.h
         ScriptExecutor.cpp
         ScriptExecutor.h
+        ProtocolCodec.cpp
+        ProtocolCodec.h
+        ScriptQueue.cpp
+        ScriptQueue.h
+        NullEventSink.cpp
+        NullEventSink.h
+        ports/RunEvent.h
+        ports/RunEventSink.h
+        ports/ScriptRunner.h
+        ports/OutputCapture.h
+)
+
+target_include_directories(cadwork_listener PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE

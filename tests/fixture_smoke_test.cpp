@@ -187,6 +187,9 @@ void FixtureSmokeTest::scriptFixturesReadable()
     }
 }
 
-QTEST_MAIN(FixtureSmokeTest)
+QObject *createFixtureSmokeTest()
+{
+    return new FixtureSmokeTest;
+}
 
 #include "fixture_smoke_test.moc"
