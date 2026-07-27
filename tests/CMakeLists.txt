@@ -1,10 +1,25 @@
 # Headless unit-test harness (no cadwork / plugin DLL).
-# Seeds 02+ add ProtocolCodec / ScriptQueue cases against this target.
+# Domain sources (queue/codec/ports) compile into this target without CwAPI3D.
 
 find_package(Qt${QT_VERSION} COMPONENTS Core Test REQUIRED)
 
+set(LISTENER_DOMAIN_SOURCES
+        ${CMAKE_SOURCE_DIR}/src/ProtocolCodec.cpp
+        ${CMAKE_SOURCE_DIR}/src/ScriptQueue.cpp
+        ${CMAKE_SOURCE_DIR}/src/NullEventSink.cpp
+)
+
 add_executable(listener_unit_tests
+        test_main.cpp
         fixture_smoke_test.cpp
+        protocol_codec_test.cpp
+        script_queue_test.cpp
+        ${LISTENER_DOMAIN_SOURCES}
+)
+
+target_include_directories(listener_unit_tests PRIVATE
+        ${CMAKE_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_link_libraries(listener_unit_tests PRIVATE
@@ -13,7 +28,6 @@ target_link_libraries(listener_unit_tests PRIVATE
 )
 
 # Source-tree fixtures so goldens stay editable without a copy step.
-# Normalize separators for the compile definition string.
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/fixtures" LISTENER_FIXTURES_DIR)
 target_compile_definitions(listener_unit_tests PRIVATE
         FIXTURES_DIR="${LISTENER_FIXTURES_DIR}"
