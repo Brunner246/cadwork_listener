@@ -4,13 +4,12 @@
 #include <QDateTime>
 #include <QTimer>
 
-namespace {
-
+namespace
+{
 QString makeIsoTimestamp()
 {
     return QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs);
 }
-
 } // namespace
 
 ScriptQueue::ScriptQueue(ScriptRunner *runner, OutputCapture *capture, QObject *parent)
@@ -31,8 +30,12 @@ RunHandle ScriptQueue::enqueue(const RunRequest &request)
     if (request.eventSink != nullptr) {
         // Non-owning view wrapped for lifetime managed by caller; we only
         // replace with shared Null on detach. For tests, fakes outlive the queue.
-        sink = std::shared_ptr<RunEventSink>(request.eventSink, [](RunEventSink *) {});
-    } else {
+        sink = std::shared_ptr<RunEventSink>(request.eventSink,
+                                             [](RunEventSink *)
+                                             {
+                                             });
+    }
+    else {
         sink = nullSink_;
     }
 
@@ -63,12 +66,12 @@ RunHandle ScriptQueue::enqueue(const RunRequest &request)
         if (job.sink) {
             job.sink->close();
         }
-        return RunHandle{id, position};
+        return RunHandle{.id = id, .queuePosition = position};
     }
 
     pending_.push_back(std::move(job));
     tryStartNext();
-    return RunHandle{id, position};
+    return RunHandle{.id = id, .queuePosition = position};
 }
 
 void ScriptQueue::onClientDetached(const QString &jobId)
@@ -168,7 +171,7 @@ void ScriptQueue::executeJob(Job job)
     heartbeatTimer_->setInterval(heartbeatIntervalMs_);
     heartbeatTimer_->start();
 
-    RunResult result{true, {}};
+    RunResult result{.ok = true, .errorMessage = {}};
     if (runner_ != nullptr) {
         result = runner_->run(job.scriptUtf8, job.id);
     }
@@ -191,13 +194,15 @@ void ScriptQueue::executeJob(Job job)
         finished.ok = true;
         finished.ts = makeIsoTimestamp();
         emitForJob(*active_, finished);
-    } else {
+    }
+    else {
         RunEvent failed;
         failed.type = RunEventType::Failed;
         failed.jobId = job.id;
         failed.durationMs = durationMs;
-        failed.error = result.errorMessage.isEmpty() ? QStringLiteral("script failed")
-                                                     : result.errorMessage;
+        failed.error = result.errorMessage.isEmpty()
+                           ? QStringLiteral("script failed")
+                           : result.errorMessage;
         failed.ts = makeIsoTimestamp();
         emitForJob(*active_, failed);
     }
@@ -209,7 +214,7 @@ void ScriptQueue::executeJob(Job job)
     tryStartNext();
 }
 
-void ScriptQueue::emitForJob(Job &job, const RunEvent &event) const
+void ScriptQueue::emitForJob(const Job &job, const RunEvent &event) const
 {
     if (job.sink) {
         job.sink->emitEvent(event);
@@ -220,8 +225,9 @@ void ScriptQueue::emitChunks(Job &job, const QVector<OutputChunk> &chunks) const
 {
     for (const OutputChunk &chunk : chunks) {
         RunEvent ev;
-        ev.type = chunk.stream == OutputChunk::Stream::Stdout ? RunEventType::Stdout
-                                                              : RunEventType::Stderr;
+        ev.type = chunk.stream == OutputChunk::Stream::Stdout
+                      ? RunEventType::Stdout
+                      : RunEventType::Stderr;
         ev.jobId = job.id;
         ev.text = chunk.text;
         ev.ts = makeIsoTimestamp();

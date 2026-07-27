@@ -11,7 +11,7 @@
 #  include <unistd.h>
 #endif
 
-SocketEventSink::SocketEventSink(qintptr nativeSocket)
+SocketEventSink::SocketEventSink(const qintptr nativeSocket)
     : fd_(nativeSocket)
 {
 }
@@ -31,10 +31,10 @@ void SocketEventSink::emitEvent(const RunEvent &event)
     }
     const QByteArray line = ProtocolCodec::encode(event);
     const char *p = line.constData();
-    int left = line.size();
+    int left = static_cast<int>(line.size());
     while (left > 0) {
 #if defined(Q_OS_WIN)
-        const int n = ::send(SOCKET(fd_), p, left, 0);
+        const int n = ::send(static_cast<SOCKET>(fd_), p, left, 0);
 #else
         const int n = static_cast<int>(::send(int(fd_), p, size_t(left), 0));
 #endif
@@ -57,13 +57,13 @@ void SocketEventSink::close()
         // Graceful write-side FIN so NDJSON already in the send buffer is not RST'd away
         // (closesocket alone can abort small, fast trailer payloads on Windows).
 #if defined(Q_OS_WIN)
-        ::shutdown(SOCKET(fd_), SD_SEND);
+        ::shutdown(static_cast<SOCKET>(fd_), SD_SEND);
         LINGER lingerOpts{};
         lingerOpts.l_onoff = 1;
         lingerOpts.l_linger = 2; // seconds
-        ::setsockopt(SOCKET(fd_), SOL_SOCKET, SO_LINGER, reinterpret_cast<const char *>(&lingerOpts),
+        ::setsockopt(static_cast<SOCKET>(fd_), SOL_SOCKET, SO_LINGER, reinterpret_cast<const char *>(&lingerOpts),
                      sizeof(lingerOpts));
-        ::closesocket(SOCKET(fd_));
+        ::closesocket(static_cast<SOCKET>(fd_));
 #else
         ::shutdown(int(fd_), SHUT_WR);
         ::close(int(fd_));

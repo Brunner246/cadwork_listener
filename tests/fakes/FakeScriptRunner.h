@@ -28,7 +28,7 @@ public:
     RunResult defaultResult{true, {}};
     QVector<RunResult> resultQueue;
 
-    void release()
+    void release() const
     {
         if (heldLoop_ != nullptr) {
             heldLoop_->quit();

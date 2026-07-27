@@ -22,11 +22,11 @@
 
 namespace {
 
-void setNonBlocking(qintptr fd)
+void setNonBlocking(const qintptr fd)
 {
 #if defined(Q_OS_WIN)
     u_long mode = 1;
-    ::ioctlsocket(SOCKET(fd), FIONBIO, &mode);
+    ::ioctlsocket(static_cast<SOCKET>(fd), FIONBIO, &mode);
 #else
     const int flags = ::fcntl(int(fd), F_GETFL, 0);
     if (flags >= 0) {
@@ -37,7 +37,7 @@ void setNonBlocking(qintptr fd)
 
 } // namespace
 
-ClientSession::ClientSession(qintptr nativeSocket, QObject *parent)
+ClientSession::ClientSession(const qintptr nativeSocket, QObject *parent)
     : QObject(parent),
       fd_(nativeSocket)
 {
@@ -64,7 +64,7 @@ ClientSession::~ClientSession()
     }
     if (!sink_ && fd_ >= 0) {
 #if defined(Q_OS_WIN)
-        ::closesocket(SOCKET(fd_));
+        ::closesocket(static_cast<SOCKET>(fd_));
 #else
         ::close(int(fd_));
 #endif
@@ -86,7 +86,7 @@ void ClientSession::onNativeReadable()
     char buf[16384];
     for (;;) {
 #if defined(Q_OS_WIN)
-        const int n = ::recv(SOCKET(fd_), buf, sizeof(buf), 0);
+        const int n = ::recv(static_cast<SOCKET>(fd_), buf, sizeof(buf), 0);
 #else
         const int n = static_cast<int>(::recv(int(fd_), buf, sizeof(buf), 0));
 #endif

@@ -41,7 +41,7 @@ public:
         return out;
     }
 
-    [[nodiscard]] int countOf(RunEventType type) const
+    [[nodiscard]] int countOf(const RunEventType type) const
     {
         int n = 0;
         for (const RunEvent &e : events) {

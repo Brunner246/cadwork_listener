@@ -51,7 +51,7 @@ private:
 
     void tryStartNext();
     void executeJob(Job job);
-    void emitForJob(Job &job, const RunEvent &event) const;
+    void emitForJob(const Job &job, const RunEvent &event) const;
     void emitChunks(Job &job, const QVector<OutputChunk> &chunks) const;
     void onHeartbeatTick();
 

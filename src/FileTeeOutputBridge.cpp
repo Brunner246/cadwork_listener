@@ -215,7 +215,7 @@ QVector<OutputChunk> FileTeeOutputBridge::readDelta(JobState &state)
 {
     QVector<OutputChunk> chunks;
 
-    auto readStream = [&](const QString &path, qint64 &offset, OutputChunk::Stream stream) {
+    auto readStream = [&](const QString &path, qint64 &offset, const OutputChunk::Stream stream) {
         QFile f(path);
         if (!f.open(QIODevice::ReadOnly)) {
             return;

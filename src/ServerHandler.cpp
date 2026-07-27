@@ -44,7 +44,7 @@ public:
             ::WSACleanup();
         }
     }
-    bool ok() const { return ok_; }
+    [[nodiscard]] bool ok() const { return ok_; }
 
 private:
     bool ok_{false};
@@ -57,11 +57,11 @@ WinsockLifetime &winsockLifetime()
 }
 #endif
 
-void setNonBlocking(qintptr fd)
+void setNonBlocking(const qintptr fd)
 {
 #if defined(Q_OS_WIN)
     u_long mode = 1;
-    ::ioctlsocket(SOCKET(fd), FIONBIO, &mode);
+    ::ioctlsocket(static_cast<SOCKET>(fd), FIONBIO, &mode);
 #else
     const int flags = ::fcntl(int(fd), F_GETFL, 0);
     if (flags >= 0) {
@@ -131,7 +131,7 @@ bool ServerHandler::startListening()
         ::closesocket(fd);
         return false;
     }
-    listenFd_ = qintptr(fd);
+    listenFd_ = static_cast<qintptr>(fd);
 #else
     if (::bind(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) != 0) {
         ::close(fd);
@@ -160,7 +160,7 @@ void ServerHandler::stopListening()
     }
     if (listenFd_ >= 0) {
 #if defined(Q_OS_WIN)
-        ::closesocket(SOCKET(listenFd_));
+        ::closesocket(static_cast<SOCKET>(listenFd_));
 #else
         ::close(int(listenFd_));
 #endif
@@ -184,7 +184,7 @@ void ServerHandler::onAcceptable()
 
     for (;;) {
 #if defined(Q_OS_WIN)
-        const SOCKET client = ::accept(SOCKET(listenFd_), nullptr, nullptr);
+        const SOCKET client = ::accept(static_cast<SOCKET>(listenFd_), nullptr, nullptr);
         if (client == INVALID_SOCKET) {
             const int err = ::WSAGetLastError();
             if (err != WSAEWOULDBLOCK) {
@@ -192,7 +192,7 @@ void ServerHandler::onAcceptable()
             }
             return;
         }
-        const qintptr clientFd = qintptr(client);
+        const qintptr clientFd = static_cast<qintptr>(client);
 #else
         const int client = ::accept(int(listenFd_), nullptr, nullptr);
         if (client < 0) {
@@ -211,7 +211,7 @@ void ServerHandler::onAcceptable()
     }
 }
 
-void ServerHandler::onRunSubmitted(const QByteArray &script, RunEventSink *sink)
+void ServerHandler::onRunSubmitted(const QByteArray &script, RunEventSink *sink) const
 {
     // SubmitRun via queue only — no DirectConnection to ScriptExecutor (research §2).
     RunRequest request;
@@ -220,7 +220,7 @@ void ServerHandler::onRunSubmitted(const QByteArray &script, RunEventSink *sink)
     queue_->enqueue(request);
 }
 
-void ServerHandler::onClientDetached(const QString &jobId)
+void ServerHandler::onClientDetached(const QString &jobId) const
 {
     queue_->onClientDetached(jobId);
 }

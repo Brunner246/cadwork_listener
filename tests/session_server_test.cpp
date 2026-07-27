@@ -105,7 +105,7 @@ public:
     [[nodiscard]] quint16 port() const { return port_; }
 
     // Non-blocking accept; returns -1 when none pending.
-    qintptr tryAccept()
+    qintptr tryAccept() const
     {
         if (listenFd_ == INVALID_SOCKET) {
             return -1;
@@ -145,7 +145,7 @@ public:
 
     ~RawTcpClient() { close(); }
 
-    bool connectTo(quint16 port)
+    bool connectTo(const quint16 port)
     {
         sock_ = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
         if (sock_ == INVALID_SOCKET) {
@@ -158,7 +158,7 @@ public:
         return ::connect(sock_, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) != SOCKET_ERROR;
     }
 
-    bool writeAll(const QByteArray &data)
+    bool writeAll(const QByteArray &data) const
     {
         const char *p = data.constData();
         int left = data.size();
@@ -192,7 +192,7 @@ public:
         return rc != SOCKET_ERROR;
     }
 
-    QByteArray readSome(int timeoutMs)
+    QByteArray readSome(const int timeoutMs) const
     {
         if (sock_ == INVALID_SOCKET) {
             return {};
@@ -327,7 +327,7 @@ struct SessionHarness {
         }
     }
 
-    bool waitForTrailer(RawTcpClient &client, NdjsonStream &stream, int timeoutMs = 5000)
+    bool waitForTrailer(RawTcpClient &client, NdjsonStream &stream, const int timeoutMs = 5000)
     {
         QElapsedTimer timer;
         timer.start();

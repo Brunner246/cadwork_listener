@@ -69,27 +69,26 @@ ScriptExecutor::~ScriptExecutor() = default;
 RunResult ScriptExecutor::run(const QString &scriptUtf8, const QString &jobId)
 {
     if (scriptUtf8.isEmpty()) {
-        return RunResult{false, QStringLiteral("empty script body")};
+        return RunResult{.ok = false, .errorMessage = QStringLiteral("empty script body")};
     }
     if (utilityController == nullptr) {
-        return RunResult{false, QStringLiteral("utility controller unavailable")};
+        return RunResult{.ok = false, .errorMessage = QStringLiteral("utility controller unavailable")};
     }
 
     // Hold temps for the full host call window, then release (Spec §9 / architecture §6).
-    std::unique_ptr<ScriptFile> localScript;
     QString pathToRun;
 
     if (capture_ != nullptr) {
         pathToRun = capture_->prepareWrappedEntry(jobId, scriptUtf8);
         if (pathToRun.isEmpty()) {
             qWarning() << "ScriptExecutor: FileTee wrapper unavailable for" << jobId;
-            return RunResult{false, QStringLiteral("capture wrapper unavailable")};
+            return RunResult{.ok = false, .errorMessage = QStringLiteral("capture wrapper unavailable")};
         }
     } else {
-        localScript = std::make_unique<ScriptFile>(scriptUtf8.toUtf8());
+        auto localScript = std::make_unique<ScriptFile>(scriptUtf8.toUtf8());
         if (localScript->path().isEmpty()) {
             qWarning() << "ScriptExecutor: cannot run script, temp file unavailable";
-            return RunResult{false, QStringLiteral("temp file unavailable")};
+            return RunResult{.ok = false, .errorMessage = QStringLiteral("temp file unavailable")};
         }
         pathToRun = localScript->path();
         // Also keep on the vector for the duration of this call (explicit retention list).
@@ -108,5 +107,5 @@ RunResult ScriptExecutor::run(const QString &scriptUtf8, const QString &jobId)
     // Release fallback script files only after host return (capture files cleaned in stop()).
     scripts.clear();
 
-    return RunResult{true, {}};
+    return RunResult{.ok = true, .errorMessage = {}};
 }

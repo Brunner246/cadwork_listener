@@ -44,8 +44,8 @@ signals:
 
 private slots:
     void onAcceptable();
-    void onRunSubmitted(const QByteArray &script, class RunEventSink *sink);
-    void onClientDetached(const QString &jobId);
+    void onRunSubmitted(const QByteArray &script, class RunEventSink *sink) const;
+    void onClientDetached(const QString &jobId) const;
 
 private:
     bool startListening();
