@@ -1,0 +1,4 @@
+{"v":1,"type":"queued","jobId":"job-fwd-1","position":0,"ts":"2026-01-15T10:03:00.000Z"}
+{"v":1,"type":"started","jobId":"job-fwd-1","ts":"2026-01-15T10:03:00.010Z"}
+{"v":1,"type":"metric_tick","jobId":"job-fwd-1","value":1,"ts":"2026-01-15T10:03:00.020Z"}
+{"v":1,"type":"finished","jobId":"job-fwd-1","durationMs":5,"ok":true,"ts":"2026-01-15T10:03:00.025Z"}

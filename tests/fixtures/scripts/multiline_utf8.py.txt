@@ -1,0 +1,7 @@
+# -*- coding: utf-8 -*-
+# café résumé 日本語 — multi-line UTF-8 body fixture (US-12)
+print("line1")
+print("line2 — em dash")
+print("αβγ")
+for i in range(3):
+    print(f"loop {i}")
