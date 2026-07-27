@@ -4,11 +4,11 @@
 
 #include "ScriptExecutor.h"
 
-#include <QTemporaryFile>
-#include <QStandardPaths>
+#include <QDebug>
 #include <QDir>
 #include <QFile>
-#include <QDebug>
+#include <QStandardPaths>
+#include <QTemporaryFile>
 
 #include <cwapi3d/CwAPI3D.h>
 
@@ -18,15 +18,14 @@ public:
     explicit ScriptFile(const QByteArray &content)
     {
         const QString tmpl = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
-            .filePath(QStringLiteral("cw_script_XXXXXX.py"));
+                                 .filePath(QStringLiteral("cw_script_XXXXXX.py"));
         file.setFileTemplate(tmpl);
         file.setAutoRemove(false);
         if (!file.open()) {
             qWarning() << "ScriptFile: failed to open temp file:" << file.errorString();
             return;
         }
-        if (const qint64 written = file.write(content);
-            written != content.size()) {
+        if (const qint64 written = file.write(content); written != content.size()) {
             qWarning() << "ScriptFile: short write" << written << "of" << content.size();
         }
         file.flush();
@@ -53,7 +52,8 @@ private:
     QString filePath;
 };
 
-ScriptExecutor::ScriptExecutor(CwAPI3D::Interfaces::ICwAPI3DUtilityController *utilityController, QObject *parent)
+ScriptExecutor::ScriptExecutor(CwAPI3D::Interfaces::ICwAPI3DUtilityController *utilityController,
+                               QObject *parent)
     : QObject(parent),
       utilityController(utilityController)
 {
@@ -61,17 +61,23 @@ ScriptExecutor::ScriptExecutor(CwAPI3D::Interfaces::ICwAPI3DUtilityController *u
 
 ScriptExecutor::~ScriptExecutor() = default;
 
-void ScriptExecutor::executeScript(const QByteArray &script)
+RunResult ScriptExecutor::run(const QString &scriptUtf8, const QString & /*jobId*/)
 {
-    if (script.isEmpty()) {
-        return;
+    if (scriptUtf8.isEmpty()) {
+        return RunResult{false, QStringLiteral("empty script body")};
     }
-    auto scriptFile = std::make_unique<ScriptFile>(script);
+    if (utilityController == nullptr) {
+        return RunResult{false, QStringLiteral("utility controller unavailable")};
+    }
+
+    const QByteArray content = scriptUtf8.toUtf8();
+    auto scriptFile = std::make_unique<ScriptFile>(content);
     if (scriptFile->path().isEmpty()) {
         qWarning() << "ScriptExecutor: cannot run script, temp file unavailable";
-        return;
+        return RunResult{false, QStringLiteral("temp file unavailable")};
     }
     const QString path = scriptFile->path();
     scripts.push_back(std::move(scriptFile));
     utilityController->runExternalProgramFromCustomDirectory(path.toStdWString().c_str());
+    return RunResult{true, {}};
 }

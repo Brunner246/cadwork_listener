@@ -1,12 +1,14 @@
 # Headless unit-test harness (no cadwork / plugin DLL).
-# Domain sources (queue/codec/ports) compile into this target without CwAPI3D.
+# Domain sources (queue/codec/session) compile into this target without CwAPI3D.
 
-find_package(Qt${QT_VERSION} COMPONENTS Core Test REQUIRED)
+find_package(Qt${QT_VERSION} COMPONENTS Core Network Test REQUIRED)
 
 set(LISTENER_DOMAIN_SOURCES
         ${CMAKE_SOURCE_DIR}/src/ProtocolCodec.cpp
         ${CMAKE_SOURCE_DIR}/src/ScriptQueue.cpp
         ${CMAKE_SOURCE_DIR}/src/NullEventSink.cpp
+        ${CMAKE_SOURCE_DIR}/src/SocketEventSink.cpp
+        ${CMAKE_SOURCE_DIR}/src/ClientSession.cpp
 )
 
 add_executable(listener_unit_tests
@@ -14,6 +16,7 @@ add_executable(listener_unit_tests
         fixture_smoke_test.cpp
         protocol_codec_test.cpp
         script_queue_test.cpp
+        session_server_test.cpp
         ${LISTENER_DOMAIN_SOURCES}
 )
 
@@ -24,8 +27,14 @@ target_include_directories(listener_unit_tests PRIVATE
 
 target_link_libraries(listener_unit_tests PRIVATE
         Qt${QT_VERSION}::Core
+        Qt${QT_VERSION}::Network
         Qt${QT_VERSION}::Test
 )
+
+if(WIN32)
+    target_link_libraries(listener_unit_tests PRIVATE ws2_32)
+endif()
+
 
 # Source-tree fixtures so goldens stay editable without a copy step.
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/fixtures" LISTENER_FIXTURES_DIR)

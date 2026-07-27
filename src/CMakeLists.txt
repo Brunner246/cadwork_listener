@@ -19,6 +19,9 @@ add_library(cadwork_listener SHARED library.cpp
         ScriptQueue.h
         NullEventSink.cpp
         NullEventSink.h
+        SocketEventSink.cpp
+        SocketEventSink.h
+        NoopOutputCapture.h
         ports/RunEvent.h
         ports/RunEventSink.h
         ports/ScriptRunner.h
@@ -35,4 +38,9 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt${QT_VERSION}::Widgets
         CwAPI3D::CwAPI3D
 )
+
+if(WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32)
+endif()
+
 

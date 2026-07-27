@@ -5,31 +5,47 @@
 #ifndef CLIENTSESSION_H
 #define CLIENTSESSION_H
 
-#include <QObject>
 #include <QByteArray>
+#include <QObject>
+#include <QString>
+#include <memory>
 
-class QTcpSocket;
+class QSocketNotifier;
+class RunEventSink;
+class SocketEventSink;
 
+// Driving adapter (architecture §3.3): half-close submit + full-run socket ownership.
+// Native FD path preserves write-after-FIN (QTcpSocket on Windows does not).
 class ClientSession final : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit ClientSession(QTcpSocket *socket, QObject *parent = nullptr);
-    ~ClientSession() override = default;
+    // Takes ownership of nativeSocket (closes it via SocketEventSink or dtor).
+    explicit ClientSession(qintptr nativeSocket, QObject *parent = nullptr);
+    ~ClientSession() override;
+
+    [[nodiscard]] QString jobId() const;
+    [[nodiscard]] bool hasSubmitted() const { return submitted_; }
 
 signals:
-    void scriptReceived(const QByteArray &script);
+    void runSubmitted(const QByteArray &script, RunEventSink *sink);
+    void clientDetached(const QString &jobId);
 
 private slots:
-    void onReadyRead();
-    void onDisconnected();
-    void onErrorOccurred() const;
+    void onNativeReadable();
 
 private:
-    QTcpSocket *socket{nullptr};
-    QByteArray buffer;
-    bool closed{false};
+    void submitIfNeeded();
+    void notifyDetachedAndFinish();
+    void finishAfterTrailer();
+
+    qintptr fd_{-1};
+    QSocketNotifier *readNotifier_{nullptr};
+    QByteArray buffer_;
+    std::unique_ptr<SocketEventSink> sink_;
+    bool submitted_{false};
+    bool finished_{false};
 };
 
-#endif //CLIENTSESSION_H
+#endif // CLIENTSESSION_H
