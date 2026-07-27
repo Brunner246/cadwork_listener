@@ -19,6 +19,7 @@ using TestFactory = QObject *(*)();
 QObject *createFixtureSmokeTest();
 QObject *createProtocolCodecTest();
 QObject *createScriptQueueTest();
+QObject *createSessionServerTest();
 
 int main(int argc, char *argv[])
 {
@@ -30,6 +31,7 @@ int main(int argc, char *argv[])
         &createFixtureSmokeTest,
         &createProtocolCodecTest,
         &createScriptQueueTest,
+        &createSessionServerTest,
     };
 
     for (TestFactory factory : factories) {
