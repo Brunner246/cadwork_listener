@@ -8,7 +8,10 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 set(QT_VERSION 6)
 
+enable_testing()
+
 add_subdirectory(src)
+add_subdirectory(tests)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE CWAPI3D_PLUGIN_NAME=L"VS Code Listener")
 target_compile_definitions(${PROJECT_NAME} PRIVATE CWAPI3D_AUTHOR_NAME=L"Michael Brunner")

@@ -4,27 +4,169 @@
 
 #include "ServerHandler.h"
 #include "ClientSession.h"
+#include "FileTeeOutputBridge.h"
 #include "ScriptExecutor.h"
+#include "ScriptQueue.h"
+#include "ports/RunEvent.h"
 
-#include <QTcpServer>
-#include <QTcpSocket>
-#include <QHostAddress>
-#include <QEventLoop>
 #include <QDebug>
+#include <QEventLoop>
+#include <QSocketNotifier>
 
-ServerHandler::ServerHandler(CwAPI3D::Interfaces::ICwAPI3DUtilityController *utilityController, QObject *parent)
-    : QObject(parent),
-      server(new QTcpServer(this)),
-      executor(new ScriptExecutor(utilityController, this))
+#if defined(Q_OS_WIN)
+#  ifndef WIN32_LEAN_AND_MEAN
+#    define WIN32_LEAN_AND_MEAN
+#  endif
+#  include <winsock2.h>
+#  include <ws2tcpip.h>
+#else
+#  include <arpa/inet.h>
+#  include <fcntl.h>
+#  include <netinet/in.h>
+#  include <sys/socket.h>
+#  include <unistd.h>
+#endif
+
+namespace {
+
+#if defined(Q_OS_WIN)
+class WinsockLifetime
 {
-    connect(server, &QTcpServer::newConnection, this, &ServerHandler::handleNewConnection);
+public:
+    WinsockLifetime()
+    {
+        WSADATA wsa{};
+        ok_ = (::WSAStartup(MAKEWORD(2, 2), &wsa) == 0);
+    }
+    ~WinsockLifetime()
+    {
+        if (ok_) {
+            ::WSACleanup();
+        }
+    }
+    [[nodiscard]] bool ok() const { return ok_; }
 
-    if (!server->listen(QHostAddress::Any, 9999)) {
-        qCritical() << "Server failed to start: " << server->errorString();
+private:
+    bool ok_{false};
+};
+
+WinsockLifetime &winsockLifetime()
+{
+    static WinsockLifetime lifetime;
+    return lifetime;
+}
+#endif
+
+void setNonBlocking(const qintptr fd)
+{
+#if defined(Q_OS_WIN)
+    u_long mode = 1;
+    ::ioctlsocket(static_cast<SOCKET>(fd), FIONBIO, &mode);
+#else
+    const int flags = ::fcntl(int(fd), F_GETFL, 0);
+    if (flags >= 0) {
+        ::fcntl(int(fd), F_SETFL, flags | O_NONBLOCK);
     }
-    else {
-        qInfo() << "Server listening on port 9999...";
+#endif
+}
+
+} // namespace
+
+ServerHandler::ServerHandler(CwAPI3D::Interfaces::ICwAPI3DUtilityController *utilityController,
+                             QObject *parent)
+    : QObject(parent),
+      capture_(new FileTeeOutputBridge()),
+      executor(new ScriptExecutor(utilityController, capture_, this)),
+      queue_(new ScriptQueue(executor, capture_, this))
+{
+#if defined(Q_OS_WIN)
+    if (!winsockLifetime().ok()) {
+        qCritical() << "ServerHandler: WSAStartup failed";
+        return;
     }
+#endif
+    if (!startListening()) {
+        qCritical() << "Server failed to start on LocalHost:" << kPort;
+    } else {
+        qInfo() << "Server listening on 127.0.0.1 port" << kPort;
+    }
+}
+
+ServerHandler::~ServerHandler()
+{
+    stopListening();
+    delete capture_;
+    capture_ = nullptr;
+}
+
+bool ServerHandler::startListening()
+{
+#if defined(Q_OS_WIN)
+    const SOCKET fd = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (fd == INVALID_SOCKET) {
+        return false;
+    }
+    BOOL reuse = TRUE;
+    ::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char *>(&reuse), sizeof(reuse));
+#else
+    const int fd = ::socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0) {
+        return false;
+    }
+    int reuse = 1;
+    ::setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+#endif
+
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(kPort);
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); // US-18 / architecture §6
+
+#if defined(Q_OS_WIN)
+    if (::bind(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) == SOCKET_ERROR) {
+        ::closesocket(fd);
+        return false;
+    }
+    if (::listen(fd, SOMAXCONN) == SOCKET_ERROR) {
+        ::closesocket(fd);
+        return false;
+    }
+    listenFd_ = static_cast<qintptr>(fd);
+#else
+    if (::bind(fd, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)) != 0) {
+        ::close(fd);
+        return false;
+    }
+    if (::listen(fd, SOMAXCONN) != 0) {
+        ::close(fd);
+        return false;
+    }
+    listenFd_ = qintptr(fd);
+#endif
+
+    setNonBlocking(listenFd_);
+    acceptNotifier_ = new QSocketNotifier(listenFd_, QSocketNotifier::Read, this);
+    connect(acceptNotifier_, &QSocketNotifier::activated, this, &ServerHandler::onAcceptable);
+    listening_ = true;
+    return true;
+}
+
+void ServerHandler::stopListening()
+{
+    if (acceptNotifier_) {
+        acceptNotifier_->setEnabled(false);
+        acceptNotifier_->deleteLater();
+        acceptNotifier_ = nullptr;
+    }
+    if (listenFd_ >= 0) {
+#if defined(Q_OS_WIN)
+        ::closesocket(static_cast<SOCKET>(listenFd_));
+#else
+        ::close(int(listenFd_));
+#endif
+        listenFd_ = -1;
+    }
+    listening_ = false;
 }
 
 void ServerHandler::runEventLoop() const
@@ -34,18 +176,51 @@ void ServerHandler::runEventLoop() const
     loop.exec();
 }
 
-void ServerHandler::handleNewConnection()
+void ServerHandler::onAcceptable()
 {
-    QTcpSocket *socket = server->nextPendingConnection();
-    if (!socket) {
+    if (listenFd_ < 0) {
         return;
     }
-    qInfo() << "Client Connected!";
 
-    const auto *session = new ClientSession(socket, this);
-    connect(session,
-            &ClientSession::scriptReceived,
-            executor,
-            &ScriptExecutor::executeScript,
-            Qt::DirectConnection);
+    for (;;) {
+#if defined(Q_OS_WIN)
+        const SOCKET client = ::accept(static_cast<SOCKET>(listenFd_), nullptr, nullptr);
+        if (client == INVALID_SOCKET) {
+            const int err = ::WSAGetLastError();
+            if (err != WSAEWOULDBLOCK) {
+                qWarning() << "ServerHandler: accept failed" << err;
+            }
+            return;
+        }
+        const qintptr clientFd = static_cast<qintptr>(client);
+#else
+        const int client = ::accept(int(listenFd_), nullptr, nullptr);
+        if (client < 0) {
+            if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                qWarning() << "ServerHandler: accept failed" << errno;
+            }
+            return;
+        }
+        const qintptr clientFd = qintptr(client);
+#endif
+
+        qInfo() << "Client Connected!";
+        auto *session = new ClientSession(clientFd, this);
+        connect(session, &ClientSession::runSubmitted, this, &ServerHandler::onRunSubmitted);
+        connect(session, &ClientSession::clientDetached, this, &ServerHandler::onClientDetached);
+    }
+}
+
+void ServerHandler::onRunSubmitted(const QByteArray &script, RunEventSink *sink) const
+{
+    // SubmitRun via queue only — no DirectConnection to ScriptExecutor (research §2).
+    RunRequest request;
+    request.scriptUtf8 = QString::fromUtf8(script);
+    request.eventSink = sink;
+    queue_->enqueue(request);
+}
+
+void ServerHandler::onClientDetached(const QString &jobId) const
+{
+    queue_->onClientDetached(jobId);
 }

@@ -1,0 +1,7 @@
+{"v":1,"type":"queued","jobId":"job-io-1","position":0,"ts":"2026-01-15T10:02:00.000Z"}
+{"v":1,"type":"started","jobId":"job-io-1","ts":"2026-01-15T10:02:00.020Z"}
+{"v":1,"type":"stdout","jobId":"job-io-1","text":"hello\n","ts":"2026-01-15T10:02:00.030Z"}
+{"v":1,"type":"stdout","jobId":"job-io-1","text":"world\n","ts":"2026-01-15T10:02:00.040Z"}
+{"v":1,"type":"stderr","jobId":"job-io-1","text":"Traceback (most recent call last):\n  File \"script.py\", line 1, in <module>\n    raise RuntimeError('boom')\nRuntimeError: boom\n","ts":"2026-01-15T10:02:00.050Z"}
+{"v":1,"type":"heartbeat","jobId":"job-io-1","elapsedMs":15000,"ts":"2026-01-15T10:02:15.020Z"}
+{"v":1,"type":"finished","jobId":"job-io-1","durationMs":120,"ok":true,"ts":"2026-01-15T10:02:00.140Z"}

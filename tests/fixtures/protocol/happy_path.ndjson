@@ -1,0 +1,4 @@
+{"v":1,"type":"queued","jobId":"job-happy-1","position":0,"ts":"2026-01-15T10:00:00.000Z"}
+{"v":1,"type":"started","jobId":"job-happy-1","ts":"2026-01-15T10:00:00.050Z"}
+{"v":1,"type":"log","jobId":"job-happy-1","text":"queue position 0","level":"info","ts":"2026-01-15T10:00:00.060Z"}
+{"v":1,"type":"finished","jobId":"job-happy-1","durationMs":42,"ok":true,"ts":"2026-01-15T10:00:00.092Z"}

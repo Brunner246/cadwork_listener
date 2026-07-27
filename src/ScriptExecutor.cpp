@@ -3,30 +3,31 @@
 //
 
 #include "ScriptExecutor.h"
+#include "FileTeeOutputBridge.h"
 
-#include <QTemporaryFile>
-#include <QStandardPaths>
+#include <QDebug>
 #include <QDir>
 #include <QFile>
-#include <QDebug>
+#include <QStandardPaths>
+#include <QTemporaryFile>
 
 #include <cwapi3d/CwAPI3D.h>
 
+// RAII temp script: lives until destructor — must outlive host call (Spec §9).
 class ScriptFile
 {
 public:
     explicit ScriptFile(const QByteArray &content)
     {
         const QString tmpl = QDir(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
-            .filePath(QStringLiteral("cw_script_XXXXXX.py"));
+                                 .filePath(QStringLiteral("cw_script_XXXXXX.py"));
         file.setFileTemplate(tmpl);
         file.setAutoRemove(false);
         if (!file.open()) {
             qWarning() << "ScriptFile: failed to open temp file:" << file.errorString();
             return;
         }
-        if (const qint64 written = file.write(content);
-            written != content.size()) {
+        if (const qint64 written = file.write(content); written != content.size()) {
             qWarning() << "ScriptFile: short write" << written << "of" << content.size();
         }
         file.flush();
@@ -36,7 +37,6 @@ public:
 
     ~ScriptFile()
     {
-        qDebug() << "ScriptFile: deleting temp file:" << filePath;
         if (!filePath.isEmpty()) {
             QFile::remove(filePath);
         }
@@ -48,30 +48,64 @@ public:
     ScriptFile &operator=(ScriptFile &&) = delete;
 
     [[nodiscard]] const QString &path() const { return filePath; }
+    [[nodiscard]] bool exists() const { return !filePath.isEmpty() && QFile::exists(filePath); }
 
 private:
     QTemporaryFile file;
     QString filePath;
 };
 
-ScriptExecutor::ScriptExecutor(CwAPI3D::Interfaces::ICwAPI3DUtilityController *utilityController, QObject *parent)
+ScriptExecutor::ScriptExecutor(CwAPI3D::Interfaces::ICwAPI3DUtilityController *utilityController,
+                               FileTeeOutputBridge *capture,
+                               QObject *parent)
     : QObject(parent),
-      utilityController(utilityController)
+      utilityController(utilityController),
+      capture_(capture)
 {
 }
 
 ScriptExecutor::~ScriptExecutor() = default;
 
-void ScriptExecutor::executeScript(const QByteArray &script) const
+RunResult ScriptExecutor::run(const QString &scriptUtf8, const QString &jobId)
 {
-    if (script.isEmpty()) {
-        return;
+    if (scriptUtf8.isEmpty()) {
+        return RunResult{.ok = false, .errorMessage = QStringLiteral("empty script body")};
     }
-    const auto scriptFile = ScriptFile(script);
-    if (scriptFile.path().isEmpty()) {
-        qWarning() << "ScriptExecutor: cannot run script, temp file unavailable";
-        return;
+    if (utilityController == nullptr) {
+        return RunResult{.ok = false, .errorMessage = QStringLiteral("utility controller unavailable")};
     }
-    const QString path = scriptFile.path();
-    utilityController->runExternalProgramFromCustomDirectory(path.toStdWString().c_str());
+
+    // Hold temps for the full host call window, then release (Spec §9 / architecture §6).
+    QString pathToRun;
+
+    if (capture_ != nullptr) {
+        pathToRun = capture_->prepareWrappedEntry(jobId, scriptUtf8);
+        if (pathToRun.isEmpty()) {
+            qWarning() << "ScriptExecutor: FileTee wrapper unavailable for" << jobId;
+            return RunResult{.ok = false, .errorMessage = QStringLiteral("capture wrapper unavailable")};
+        }
+    } else {
+        auto localScript = std::make_unique<ScriptFile>(scriptUtf8.toUtf8());
+        if (localScript->path().isEmpty()) {
+            qWarning() << "ScriptExecutor: cannot run script, temp file unavailable";
+            return RunResult{.ok = false, .errorMessage = QStringLiteral("temp file unavailable")};
+        }
+        pathToRun = localScript->path();
+        // Also keep on the vector for the duration of this call (explicit retention list).
+        scripts.push_back(std::move(localScript));
+    }
+
+    hostCallActive_ = true;
+    activeEntryPath_ = pathToRun;
+
+    // Nested host call: do not delete pathToRun until after this returns.
+    utilityController->runExternalProgramFromCustomDirectory(pathToRun.toStdWString().c_str());
+
+    hostCallActive_ = false;
+    activeEntryPath_.clear();
+
+    // Release fallback script files only after host return (capture files cleaned in stop()).
+    scripts.clear();
+
+    return RunResult{.ok = true, .errorMessage = {}};
 }
