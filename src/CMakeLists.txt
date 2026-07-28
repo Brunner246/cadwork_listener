@@ -1,4 +1,4 @@
-find_package(CwAPI3D CONFIG REQUIRED)
+# CwAPI3D::CwAPI3D is provided by the root CMakeLists (find_package or FetchContent).
 
 find_package(Qt${QT_VERSION} COMPONENTS
         Core

@@ -263,6 +263,15 @@ $client.Close()
 
 ## Build
 
+### Dependencies
+
+| Dependency | How it is resolved |
+|------------|--------------------|
+| **Qt 6** (Core, Network, Widgets; Test for unit tests) | `find_package(Qt6 …)` — set `CMAKE_PREFIX_PATH` (or use a local CMake preset) to your Qt kit |
+| **CwAPI3D** | `find_package(CwAPI3D)` if installed (e.g. vcpkg); otherwise **FetchContent** pulls [cwapi3d/cwapi3dcpp](https://github.com/cwapi3d/cwapi3dcpp) from GitHub (`CWAPI3D_GIT_TAG`, default `main`) |
+
+### Local (presets)
+
 Use the CMake presets in this repo (e.g. `local-relwithdebinfo`). Plugin target: `cadwork_listener`. Headless unit tests: `listener_unit_tests` via `ctest`.
 
 ```text
@@ -270,6 +279,16 @@ cmake --preset local-relwithdebinfo
 cmake --build --preset local-relwithdebinfo
 ctest --test-dir cmake-build-local-relwithdebinfo --output-on-failure
 ```
+
+Or via the agent-friendly wrapper (loads the MSVC x64 environment first):
+
+```text
+.\scripts\syncro-build.ps1 -Configure -Test
+```
+
+### CI
+
+GitHub Actions (`.github/workflows/ci.yml`) builds on `windows-latest` with MSVC, Ninja, and Qt from [`jurplel/install-qt-action`](https://github.com/jurplel/install-qt-action). CwAPI3D is fetched automatically via FetchContent.
 
 ### Source layout (high level)
 
